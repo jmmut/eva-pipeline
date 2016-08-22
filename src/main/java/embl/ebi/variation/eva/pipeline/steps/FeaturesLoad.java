@@ -18,10 +18,10 @@ package embl.ebi.variation.eva.pipeline.steps;
 
 import embl.ebi.variation.eva.pipeline.MongoDBHelper;
 import embl.ebi.variation.eva.pipeline.annotation.GzipLazyResource;
+import embl.ebi.variation.eva.pipeline.gene.FeatureCoordinates;
 import embl.ebi.variation.eva.pipeline.gene.GeneFilterProcessor;
 import embl.ebi.variation.eva.pipeline.gene.GeneLineMapper;
-import embl.ebi.variation.eva.pipeline.gene.FeatureCoordinates;
-import embl.ebi.variation.eva.pipeline.jobs.VariantJobArgsConfig;
+import embl.ebi.variation.eva.pipeline.jobs.InitDBArgsConfig;
 import embl.ebi.variation.eva.pipeline.listener.SkipCheckingListener;
 import org.opencb.datastore.core.ObjectMap;
 import org.springframework.batch.core.Step;
@@ -54,8 +54,8 @@ import java.io.IOException;
 
 @Configuration
 @EnableBatchProcessing
-@Import(VariantJobArgsConfig.class)
-public class GenesLoad {
+@Import(InitDBArgsConfig.class)
+public class FeaturesLoad {
 
     @Autowired
     private StepBuilderFactory steps;
@@ -64,9 +64,9 @@ public class GenesLoad {
     private ObjectMap pipelineOptions;
 
     @Bean
-    @Qualifier("genesLoadStep")
-    public Step genesLoadStep() throws IOException {
-        return steps.get("genesLoadStep").<FeatureCoordinates, FeatureCoordinates>chunk(10)
+    @Qualifier("featuresLoadStep")
+    public Step featuresLoadStep() throws IOException {
+        return steps.get("featuresLoadStep").<FeatureCoordinates, FeatureCoordinates>chunk(10)
                 .reader(geneReader())
                 .processor(geneFilterProcessor())
                 .writer(geneWriter())
@@ -77,7 +77,7 @@ public class GenesLoad {
 
     @Bean
     public FlatFileItemReader<FeatureCoordinates> geneReader() throws IOException {
-        Resource resource = new GzipLazyResource(pipelineOptions.getString("gtf"));
+        Resource resource = new GzipLazyResource(pipelineOptions.getString("input.gtf"));
         FlatFileItemReader<FeatureCoordinates> reader = new FlatFileItemReader<>();
         reader.setResource(resource);
         reader.setLineMapper(new GeneLineMapper());
@@ -89,7 +89,7 @@ public class GenesLoad {
     public ItemWriter<FeatureCoordinates> geneWriter(){
         MongoOperations mongoOperations = MongoDBHelper.getMongoOperationsFromPipelineOptions(pipelineOptions);
         MongoItemWriter<FeatureCoordinates> writer = new MongoItemWriter<>();
-        writer.setCollection(pipelineOptions.getString("dbCollectionGenesName"));
+        writer.setCollection(pipelineOptions.getString("db.collections.features.name"));
         writer.setTemplate(mongoOperations);
         return writer;
     }

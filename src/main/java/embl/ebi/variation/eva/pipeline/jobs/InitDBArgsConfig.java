@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 EMBL - European Bioinformatics Institute
+ * Copyright 2015 EMBL - European Bioinformatics Institute
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,28 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package embl.ebi.variation.eva.pipeline.jobs;
 
+import embl.ebi.variation.eva.InitDBArgs;
+import org.opencb.datastore.core.ObjectMap;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.PropertySource;
-import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 
 /**
- * @author Diego Poggioli
+ * @author Diego Poggioli &lt;diego@ebi.ac.uk&gt;
  *
- * Configuration init for Annotation Job
+ *  Configuration class to initialize and hold job arguments:
+ *  - variantOptions: will be used in opencga
+ *  - pipelineOptions: will be used by the pipeline
  */
 @Configuration
-@PropertySource({"annotation.properties"})
-public class AnnotationConfig {
+public class InitDBArgsConfig {
 
-    private static String opencgaHome = System.getenv("OPENCGA_HOME") != null ? System.getenv("OPENCGA_HOME") : "/opt/opencga";
+    @Bean(initMethod = "loadArgs")
+    public InitDBArgs InitDBArgs(){
+        return new InitDBArgs();
+    }
 
     @Bean
-    public static PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer() {
-        return new PropertySourcesPlaceholderConfigurer();
+    public ObjectMap variantOptions(){
+        return InitDBArgs().getVariantOptions();
     }
+
+    @Bean
+    public ObjectMap pipelineOptions(){
+        return InitDBArgs().getPipelineOptions();
+    }
+
 
 }

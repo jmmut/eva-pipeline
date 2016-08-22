@@ -15,11 +15,15 @@
  */
 package embl.ebi.variation.eva.pipeline.steps;
 
-import com.mongodb.*;
+import com.mongodb.DBCollection;
+import com.mongodb.DBCursor;
+import com.mongodb.DBObject;
+import com.mongodb.MongoClient;
+import embl.ebi.variation.eva.InitDBArgs;
 import embl.ebi.variation.eva.VariantJobsArgs;
-import embl.ebi.variation.eva.pipeline.gene.GeneLineMapper;
 import embl.ebi.variation.eva.pipeline.gene.FeatureCoordinates;
-import embl.ebi.variation.eva.pipeline.jobs.AnnotationConfig;
+import embl.ebi.variation.eva.pipeline.gene.GeneLineMapper;
+import embl.ebi.variation.eva.pipeline.jobs.InitDBConfig;
 import embl.ebi.variation.eva.pipeline.jobs.JobTestUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -34,22 +38,24 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import java.io.*;
-import java.util.*;
+import java.io.FileInputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.zip.GZIPInputStream;
 
 import static embl.ebi.variation.eva.pipeline.jobs.JobTestUtils.makeGzipFile;
 import static junit.framework.Assert.assertEquals;
-import static junit.framework.TestCase.*;
+import static junit.framework.TestCase.assertNotNull;
+import static junit.framework.TestCase.assertTrue;
 
 /**
  * @author Jose Miguel Mut Lopez &lt;jmmut@ebi.ac.uk&gt;
  *
- * Test {@link GenesLoad}
+ * Test {@link FeaturesLoad}
  */
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = { GenesLoad.class, AnnotationConfig.class})
-public class GenesLoadTest {
+@ContextConfiguration(classes = { FeaturesLoad.class, InitDBConfig.class})
+public class FeaturesLoadTest {
 
     @Autowired
     private FlatFileItemReader<FeatureCoordinates> geneReader;
@@ -61,13 +67,13 @@ public class GenesLoadTest {
     private ItemWriter<FeatureCoordinates> geneWriter;
 
     @Autowired
-    public VariantJobsArgs variantJobsArgs;
+    public InitDBArgs initDBArgs;
 
     private ExecutionContext executionContext;
 
     @Before
     public void setUp() throws Exception {
-        variantJobsArgs.loadArgs();
+        initDBArgs.loadArgs();
         executionContext = MetaDataInstanceFactory.createStepExecution().getExecutionContext();
     }
 
@@ -84,7 +90,7 @@ public class GenesLoadTest {
 
     @Test
     public void geneReaderShouldReadAllLinesInGtf() throws Exception {
-        String gtf = variantJobsArgs.getPipelineOptions().getString("gtf");
+        String gtf = initDBArgs.getPipelineOptions().getString("input.gtf");
 
         //simulate VEP output file
         makeGzipFile(gtfContent, gtf);
@@ -111,7 +117,7 @@ public class GenesLoadTest {
 
     @Test
     public void geneFilterProcessorShouldKeepGenesAndTranscripts() throws Exception {
-        String gtf = variantJobsArgs.getPipelineOptions().getString("gtf");
+        String gtf = initDBArgs.getPipelineOptions().getString("input.gtf");
 
         //simulate VEP output file
         makeGzipFile(gtfContent, gtf);
@@ -136,8 +142,8 @@ public class GenesLoadTest {
 
     @Test
     public void geneWriterShouldWriteAllFieldsIntoMongoDb() throws Exception {
-        String dbName = variantJobsArgs.getPipelineOptions().getString(VariantStorageManager.DB_NAME);
-        String dbCollectionGenesName = variantJobsArgs.getPipelineOptions().getString("dbCollectionGenesName");
+        String dbName = initDBArgs.getPipelineOptions().getString(VariantStorageManager.DB_NAME);
+        String dbCollectionGenesName = initDBArgs.getPipelineOptions().getString("db.collections.features.name");
         JobTestUtils.cleanDBs(dbName);
 
         GeneLineMapper lineMapper = new GeneLineMapper();

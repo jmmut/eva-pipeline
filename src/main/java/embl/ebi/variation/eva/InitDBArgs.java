@@ -15,24 +15,20 @@
  */
 package embl.ebi.variation.eva;
 
-import embl.ebi.variation.eva.pipeline.steps.*;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URI;
-import org.opencb.biodata.models.variant.VariantSource;
-import org.opencb.biodata.models.variant.VariantStudy;
 import org.opencb.datastore.core.ObjectMap;
+import org.opencb.opencga.lib.common.Config;
 import org.opencb.opencga.storage.core.variant.VariantStorageManager;
+import org.opencb.opencga.storage.mongodb.variant.MongoDBVariantStorageManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.nio.file.Paths;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URI;
 import java.util.Properties;
-import org.opencb.opencga.lib.common.Config;
-import org.opencb.opencga.storage.mongodb.variant.MongoDBVariantStorageManager;
 
 /**
  *
@@ -45,34 +41,14 @@ import org.opencb.opencga.storage.mongodb.variant.MongoDBVariantStorageManager;
  * TODO validation checks for all the parameters
  */
 @Component
-public class VariantJobsArgs {
-    private static final Logger logger = LoggerFactory.getLogger(VariantJobsArgs.class);
+public class InitDBArgs {
+    private static final Logger logger = LoggerFactory.getLogger(InitDBArgs.class);
 
     // Input
-    @Value("${input.vcf}") private String input;
-    @Value("${input.vcf.id}") private String fileId;
-    @Value("${input.vcf.aggregation}") private String aggregated;
-    @Value("${input.study.type}") private String studyType;
-    @Value("${input.study.name}") private String studyName;
-    @Value("${input.study.id}") private String studyId;
-    @Value("${input.pedigree:}") private String pedigree;
+    @Value("${input.gtf}") private String gtf;
 
     // Output
-    @Value("${output.dir}") private String outputDir;
-    @Value("${output.dir.annotation}") private String outputDirAnnotation;
-    
-    @Value("${statistics.overwrite:false}") private boolean overwriteStats;
-
     @Value("${app.opencga.path}") private String opencgaAppHome;
-    
-    //// OpenCGA options with default values (non-customizable)
-    private String compressExtension = ".gz";
-    private boolean includeSamples = true;
-    private boolean compressGenotypes = true;
-    private boolean calculateStats = false;
-    private boolean includeStats = false;
-    private boolean annotate = false;
-    private VariantStorageManager.IncludeSrc includeSourceLine = VariantStorageManager.IncludeSrc.FIRST_8_COLUMNS;
 
     /// DB connection (most parameters read from OpenCGA "conf" folder)
     private String dbHosts;
@@ -83,21 +59,9 @@ public class VariantJobsArgs {
     private String dbCollectionVariantsName;
     private String dbCollectionFilesName;
     @Value("${config.db.read-preference}") private String readPreference;
+    @Value("${db.collections.features.name}") private String dbCollectionGenesName;
 
     //steps
-    @Value("${load.skip:false}") private boolean skipLoad;
-    @Value("${statistics.create.skip:false}") private boolean skipStatsCreate;
-    @Value("${statistics.load.skip:false}") private boolean skipStatsLoad;
-    @Value("${annotation.create.skip:false}") private boolean skipAnnotCreate;
-
-    //VEP
-    @Value("${app.vep.path}") private String vepPath;
-    @Value("${app.vep.cache.path}") private String vepCacheDirectory;
-    @Value("${app.vep.cache.version}") private String vepCacheVersion;
-    @Value("${app.vep.cache.species}") private String vepSpecies;
-    @Value("${input.fasta}") private String vepFasta;
-    @Value("${app.vep.num-forks}") private String vepNumForks;
-
     @Value("${config.restartability.allow:false}") private boolean allowStartIfComplete;
 
     private ObjectMap variantOptions  = new ObjectMap();
@@ -144,24 +108,6 @@ public class VariantJobsArgs {
     }
             
     private void loadOpencgaOptions() {
-        VariantSource source = new VariantSource(
-                Paths.get(input).getFileName().toString(),
-                fileId,
-                studyId,
-                studyName,
-                VariantStudy.StudyType.valueOf(studyType),
-                VariantSource.Aggregation.valueOf(aggregated));
-
-        variantOptions.put(VariantStorageManager.VARIANT_SOURCE, source);
-        variantOptions.put(VariantStorageManager.OVERWRITE_STATS, overwriteStats);
-        variantOptions.put(VariantStorageManager.INCLUDE_SRC, includeSourceLine);
-        variantOptions.put("compressExtension", compressExtension);
-        variantOptions.put(VariantStorageManager.INCLUDE_SAMPLES, includeSamples);   // TODO rename samples to genotypes
-        variantOptions.put(VariantStorageManager.COMPRESS_GENOTYPES, compressGenotypes);
-        variantOptions.put(VariantStorageManager.CALCULATE_STATS, calculateStats);   // this is tested by hand
-        variantOptions.put(VariantStorageManager.INCLUDE_STATS, includeStats);
-        variantOptions.put(VariantStorageManager.ANNOTATE, annotate);
-        
         variantOptions.put(VariantStorageManager.DB_NAME, dbName);
         variantOptions.put(MongoDBVariantStorageManager.OPENCGA_STORAGE_MONGODB_VARIANT_DB_NAME, dbName);
         variantOptions.put(MongoDBVariantStorageManager.OPENCGA_STORAGE_MONGODB_VARIANT_DB_HOSTS, dbHosts);
@@ -169,38 +115,21 @@ public class VariantJobsArgs {
         variantOptions.put(MongoDBVariantStorageManager.OPENCGA_STORAGE_MONGODB_VARIANT_DB_USER, dbUser);
         variantOptions.put(MongoDBVariantStorageManager.OPENCGA_STORAGE_MONGODB_VARIANT_DB_PASS, dbPassword);
 
-        logger.debug("Using as input: {}", input);
         logger.debug("Using as variantOptions: {}", variantOptions.entrySet().toString());
     }
 
     private void loadPipelineOptions() {
-        pipelineOptions.put("input.vcf", input);
-        pipelineOptions.put("compressExtension", compressExtension);
-        pipelineOptions.put("output.dir", outputDir);
-        pipelineOptions.put("input.pedigree", pedigree);
+        pipelineOptions.put("input.gtf", gtf);
         pipelineOptions.put("dbHosts", dbHosts);
         pipelineOptions.put("dbAuthenticationDb", dbAuthenticationDb);
         pipelineOptions.put(VariantStorageManager.DB_NAME, dbName);
         pipelineOptions.put("dbCollectionVariantsName", dbCollectionVariantsName);
         pipelineOptions.put("dbCollectionFilesName", dbCollectionFilesName);
+        pipelineOptions.put("db.collections.features.name", dbCollectionGenesName);
         pipelineOptions.put("dbUser", dbUser);
         pipelineOptions.put("dbPassword", dbPassword);
         pipelineOptions.put("config.db.read-preference", readPreference);
-        pipelineOptions.put(VariantsLoad.SKIP_LOAD, skipLoad);
-        pipelineOptions.put(VariantsStatsCreate.SKIP_STATS_CREATE, skipStatsCreate);
-        pipelineOptions.put(VariantsStatsLoad.SKIP_STATS_LOAD, skipStatsLoad);
-        pipelineOptions.put(VariantsAnnotCreate.SKIP_ANNOT_CREATE, skipAnnotCreate);
-        
-        String annotationFilesPrefix = studyId + "_" + fileId;
-        pipelineOptions.put("vep.input", URI.create(outputDirAnnotation + "/").resolve(annotationFilesPrefix + "_variants_to_annotate.tsv.gz").toString());
-        pipelineOptions.put("vep.output", URI.create(outputDirAnnotation + "/").resolve(annotationFilesPrefix + "_vep_annotation.tsv.gz").toString());
-        
-        pipelineOptions.put("app.vep.path", vepPath);
-        pipelineOptions.put("app.vep.cache.path", vepCacheDirectory);
-        pipelineOptions.put("app.vep.cache.version", vepCacheVersion);
-        pipelineOptions.put("app.vep.cache.species", vepSpecies);
-        pipelineOptions.put("input.fasta", vepFasta);
-        pipelineOptions.put("app.vep.num-forks", vepNumForks);
+
         pipelineOptions.put("config.restartability.allow", allowStartIfComplete);
 
         logger.debug("Using as pipelineOptions: {}", pipelineOptions.entrySet().toString());

@@ -25,25 +25,20 @@ import org.springframework.batch.core.configuration.annotation.EnableBatchProces
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.job.builder.JobBuilder;
-import org.springframework.batch.core.job.flow.Flow;
-import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
-import org.springframework.batch.core.step.builder.StepBuilder;
-import org.springframework.batch.core.step.builder.TaskletStepBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.core.env.Environment;
 
 @Configuration
 @EnableBatchProcessing
-@Import({VariantJobArgsConfig.class, GenesLoad.class})
+@Import({InitDBArgsConfig.class, FeaturesLoad.class})
 public class InitDBConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(InitDBConfiguration.class);
-    public static final String jobName = "initDBJob";
+    public static final String jobName = "initialize-database";
 
     @Autowired
     JobBuilderFactory jobBuilderFactory;
@@ -52,20 +47,20 @@ public class InitDBConfiguration {
     @Autowired
     private ObjectMap pipelineOptions;
 
-    @Qualifier("genesLoadStep")
-    @Autowired private Step genesLoadStep;
+    @Qualifier("featuresLoadStep")
+    @Autowired private Step featuresLoadStep;
 
 
     @Bean
-    @Qualifier("variantJob")
-    public Job variantJob() {
+    @Qualifier("initDBJob")
+    public Job initDBJob() {
 
         JobBuilder jobBuilder = jobBuilderFactory
                 .get(jobName)
                 .incrementer(new RunIdIncrementer());
 
         return jobBuilder
-                .start(genesLoadStep)
+                .start(featuresLoadStep)
                 .build();
     }
 }
