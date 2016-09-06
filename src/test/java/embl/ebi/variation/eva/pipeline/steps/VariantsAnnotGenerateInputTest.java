@@ -15,7 +15,9 @@
  */
 package embl.ebi.variation.eva.pipeline.steps;
 
-import com.mongodb.*;
+import com.mongodb.DBCollection;
+import com.mongodb.DBObject;
+import com.mongodb.MongoClient;
 import com.mongodb.util.JSON;
 import embl.ebi.variation.eva.VariantJobsArgs;
 import embl.ebi.variation.eva.pipeline.annotation.generateInput.VariantAnnotationItemProcessor;
@@ -44,14 +46,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
 
 import static embl.ebi.variation.eva.pipeline.jobs.JobTestUtils.restoreMongoDbFromDump;
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertFalse;
-import static junit.framework.TestCase.assertTrue;
+import static junit.framework.TestCase.*;
 
 /**
  * @author Diego Poggioli
@@ -113,7 +114,7 @@ public class VariantsAnnotGenerateInputTest {
         assertEquals(BatchStatus.COMPLETED, jobExecution.getStatus());
 
         assertTrue(vepInputFile.exists());
-        assertEquals("20\t60343\t60343\tG/A\t+", readFirstLine(vepInputFile));
+        assertEquals("20\t60343\t60343\tG/A\t+", JobTestUtils.readFirstLine(vepInputFile));
         JobTestUtils.cleanDBs(VARIANTS_ANNOT_GENERATE_VEP_INPUT_DB_NAME);
     }
 
@@ -157,7 +158,7 @@ public class VariantsAnnotGenerateInputTest {
         VepInputWriter writer = new VepInputWriter(variantJobsArgs.getPipelineOptions());
         writer.open(executionContext);
         writer.write(Collections.singletonList(variant));
-        assertEquals("20\t60344\t60348\tG/A\t+", readFirstLine(outputFile));
+        assertEquals("20\t60344\t60348\tG/A\t+", JobTestUtils.readFirstLine(outputFile));
         writer.close();
         outputFile.delete();
     }
@@ -174,11 +175,4 @@ public class VariantsAnnotGenerateInputTest {
     private DBObject constructDbo(String variant) {
         return (DBObject) JSON.parse(variant);
     }
-
-    private String readFirstLine(File file) throws IOException {
-        try(BufferedReader reader = new BufferedReader(new FileReader(file))){
-            return reader.readLine();
-        }
-    }
-
 }

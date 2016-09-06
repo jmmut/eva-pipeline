@@ -27,9 +27,7 @@ import java.io.*;
 import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -39,6 +37,24 @@ import java.util.zip.GZIPOutputStream;
  */
 public class JobTestUtils {
     private static final Logger logger = LoggerFactory.getLogger(JobTestUtils.class);
+
+    /**
+     * reads the file and sorts it in memory to return the first ordered line. Don't use for big files!
+     * @param file to be sorted
+     * @return String, the first orderec line
+     * @throws IOException
+     */
+    public static String readFirstLine(File file) throws IOException {
+        Set<String> lines = new TreeSet<>();
+        try(BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line = reader.readLine();
+            while (line != null) {
+                lines.add(line);
+                line = reader.readLine();
+            }
+        }
+        return lines.iterator().next();
+    }
 
     public static long getLines(InputStream in) throws IOException {
         BufferedReader file = new BufferedReader(new InputStreamReader(in));
