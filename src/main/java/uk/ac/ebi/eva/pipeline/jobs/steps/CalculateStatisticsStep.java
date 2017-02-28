@@ -17,38 +17,65 @@ package uk.ac.ebi.eva.pipeline.jobs.steps;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
-import org.springframework.batch.core.configuration.annotation.StepScope;
-import org.springframework.batch.core.step.tasklet.TaskletStep;
+import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.repeat.policy.SimpleCompletionPolicy;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+
+import uk.ac.ebi.eva.commons.models.data.Variant;
+import uk.ac.ebi.eva.pipeline.configuration.ChunkSizeCompletionPolicyConfiguration;
+import uk.ac.ebi.eva.pipeline.configuration.writers.VariantWriterConfiguration;
+import uk.ac.ebi.eva.pipeline.jobs.steps.processors.StatisticsProcessor;
 import uk.ac.ebi.eva.pipeline.jobs.steps.tasklets.PopulationStatisticsGeneratorStep;
 import uk.ac.ebi.eva.pipeline.parameters.JobOptions;
-import uk.ac.ebi.eva.utils.TaskletUtils;
 
 import static uk.ac.ebi.eva.pipeline.configuration.BeanNames.CALCULATE_STATISTICS_STEP;
+import static uk.ac.ebi.eva.pipeline.configuration.BeanNames.VARIANT_DB_READER;
+import static uk.ac.ebi.eva.pipeline.configuration.BeanNames.VARIANT_STATISTICS_PROCESSOR;
+import static uk.ac.ebi.eva.pipeline.configuration.BeanNames.VARIANT_WRITER;
 
 /**
  * Configuration class that inject a step created with the tasklet {@link PopulationStatisticsGeneratorStep}
  */
 @Configuration
 @EnableBatchProcessing
+@Import({VariantDBReader.class, StatisticsProcessor.class, VariantWriterConfiguration.class,
+        ChunkSizeCompletionPolicyConfiguration.class})
 public class CalculateStatisticsStep {
 
     private static final Logger logger = LoggerFactory.getLogger(CalculateStatisticsStep.class);
 
-    @Bean
-    @StepScope
-    public PopulationStatisticsGeneratorStep populationStatisticsGeneratorStep() {
-        return new PopulationStatisticsGeneratorStep();
-    }
+    @Autowired
+    @Qualifier(VARIANT_DB_READER)
+    private ItemReader<Variant> reader;
+
+    @Autowired
+    @Qualifier(VARIANT_STATISTICS_PROCESSOR)
+    private ItemProcessor<Variant, Variant> processor;
+
+    @Autowired
+    @Qualifier(VARIANT_WRITER)
+    private ItemWriter<Variant> writer;
 
     @Bean(CALCULATE_STATISTICS_STEP)
-    public TaskletStep calculateStatisticsStep(StepBuilderFactory stepBuilderFactory, JobOptions jobOptions) {
+    public Step generateCalculateStatisticsStep(StepBuilderFactory stepBuilderFactory, JobOptions jobOptions,
+            SimpleCompletionPolicy chunkSizeCompletionPolicy) {
         logger.debug("Building '" + CALCULATE_STATISTICS_STEP + "'");
-        return TaskletUtils.generateStep(stepBuilderFactory, CALCULATE_STATISTICS_STEP,
-                populationStatisticsGeneratorStep(), jobOptions.isAllowStartIfComplete());
-    }
 
+        return stepBuilderFactory.get(CALCULATE_STATISTICS_STEP)
+                .<Variant, Variant>chunk(chunkSizeCompletionPolicy)
+                .reader(reader)
+                .processor(processor)
+                .writer(writer)
+                .allowStartIfComplete(jobOptions.isAllowStartIfComplete())
+                .build();
+    }
 }
