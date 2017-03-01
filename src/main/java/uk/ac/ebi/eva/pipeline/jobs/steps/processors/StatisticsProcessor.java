@@ -42,7 +42,7 @@ public class StatisticsProcessor implements ItemProcessor<Variant, Variant> {
 
     private Map<String, List<Integer>> populations;
 
-    public StatisticsProcessor(String studyId, Map<String, List<Integer>> populations) {
+    public StatisticsProcessor(String studyId, Map<String, List<Sample>> populations) {
         this.studyId = studyId;
         this.populations = populations;
     }
