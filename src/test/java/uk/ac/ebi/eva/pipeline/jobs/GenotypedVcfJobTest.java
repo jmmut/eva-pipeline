@@ -141,7 +141,7 @@ public class GenotypedVcfJobTest {
                 .collectionFilesName(GenotypedVcfJobTestUtils.COLLECTION_FILES_NAME)
                 .collectionVariantsName(GenotypedVcfJobTestUtils.COLLECTION_VARIANTS_NAME)
                 .databaseName(databaseName)
-		        .inputFasta(fasta.getAbsolutePath())
+                .inputFasta(fasta.getAbsolutePath())
                 .inputVcf(GenotypedVcfJobTestUtils.getInputFile().getAbsolutePath())
                 .inputVcfId(GenotypedVcfJobTestUtils.INPUT_VCF_ID)
                 .inputStudyId(GenotypedVcfJobTestUtils.INPUT_STUDY_ID)

@@ -17,16 +17,21 @@
 package uk.ac.ebi.eva.pipeline.jobs.steps.processors;
 
 import com.mongodb.DBObject;
+import org.opencb.biodata.models.feature.Genotype;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.ItemProcessor;
 
+import uk.ac.ebi.eva.commons.models.data.Sample;
+import uk.ac.ebi.eva.commons.models.data.SampleLocation;
 import uk.ac.ebi.eva.commons.models.data.Variant;
+import uk.ac.ebi.eva.commons.models.data.VariantSourceEntry;
 import uk.ac.ebi.eva.commons.models.data.VariantStats;
+import uk.ac.ebi.eva.pipeline.model.PopulationStatistics;
 import uk.ac.ebi.eva.pipeline.model.VariantWrapper;
+import uk.ac.ebi.eva.utils.MongoDBHelper;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -35,12 +40,12 @@ import java.util.stream.Collectors;
  * Convert a {@link DBObject} into {@link VariantWrapper}
  * Any extra filter, check, validation... should be placed here
  */
-public class StatisticsProcessor implements ItemProcessor<Variant, Variant> {
+public class StatisticsProcessor implements ItemProcessor<Variant, List<PopulationStatistics>> {
     private static final Logger logger = LoggerFactory.getLogger(StatisticsProcessor.class);
 
     private String studyId;
 
-    private Map<String, List<Integer>> populations;
+    private Map<String, List<Sample>> populations;
 
     public StatisticsProcessor(String studyId, Map<String, List<Sample>> populations) {
         this.studyId = studyId;
@@ -48,7 +53,7 @@ public class StatisticsProcessor implements ItemProcessor<Variant, Variant> {
     }
 
     @Override
-    public Variant process(Variant variant) throws Exception {
+    public List<PopulationStatistics> process(Variant variant) throws Exception {
         /*
         for each population
             for each sample
@@ -57,34 +62,55 @@ public class StatisticsProcessor implements ItemProcessor<Variant, Variant> {
             save cohort stats in the variant
         return variant
          */
-        Map<String, VariantStats> cohortStats = new HashMap<>(populations.size());
-        for (Map.Entry<String, List<Integer>> population : populations.entrySet()) {
+        List<PopulationStatistics> statsList = new ArrayList<>(populations.size());
+        for (Map.Entry<String, List<Sample>> population : populations.entrySet()) {
             List<Map<String, String>> samplesData = new ArrayList<>(population.getValue().size());
-            for (Integer sample : population.getValue()) {
+            for (Sample sample : population.getValue()) {
                 Map<String, String> sampleData = searchGenotype(variant, studyId, sample);
                 samplesData.add(sampleData);
             }
             VariantStats variantStats = new VariantStats(variant);
             variantStats.calculate(samplesData, null, null);
-            cohortStats.put(population.getKey(), variantStats);
+            String populationName = population.getKey();
+            PopulationStatistics populationStatistics = buildPopulationStatistics(variant, variantStats, populationName);
+            statsList.add(populationStatistics);
         }
-        return "noooooo!";
+        return statsList;
     }
 
-    private Map<String, String> searchGenotype(Variant variant, String studyId, Integer sample) {
-        List<Map<String, String>> samplesData = variant.getSourceEntries().values().stream()
-                .filter(sourceEntry -> sourceEntry.getStudyId().equals(studyId))
-                .filter(sourceEntry -> sourceEntry.getSamplesData().size() > sample)
-                .map(sourceEntry -> sourceEntry.getSampleData(sample)).collect(Collectors.toList());
+    public PopulationStatistics buildPopulationStatistics(Variant variant, VariantStats variantStats,
+            String populationName) {
+        return new PopulationStatistics(
+                MongoDBHelper.buildStorageId(variant),
+                variant.getChromosome(),
+                variant.getStart(),
+                variant.getReference(),
+                variant.getAlternate(),
+                populationName,
+                studyId,
+                variantStats.getMaf(),
+                variantStats.getMgf(),
+                variantStats.getMafAllele(),
+                variantStats.getMgfGenotype(),
+                variantStats.getMissingAlleles(),
+                variantStats.getMissingGenotypes(),
+                mapGenotypesToString(variantStats.getGenotypesCount()
+                ));
+    }
 
-        if (samplesData.size() > 1) {
-            throw new IllegalStateException("the same sample " + sample + " has 2 entries in the study " + studyId
-                    + " in variant at " + variant.toString());
-        } else if (samplesData.size() == 0) {
-            throw new IllegalStateException("the sample " + sample + " was not found in the study " + studyId
-                    + " in variant at " + variant.toString());
-        } else {
-            return samplesData.get(0);
+    private Map<String, Integer> mapGenotypesToString(Map<Genotype, Integer> genotypesCount) {
+        return genotypesCount.entrySet().stream()
+                .collect(Collectors.toMap(entry -> entry.getKey().toString(), Map.Entry::getValue));
+    }
+
+    private Map<String, String> searchGenotype(Variant variant, String studyId, Sample sample) {
+        for (SampleLocation sampleLocation : sample.getLocations()) {
+            VariantSourceEntry sourceEntry = variant.getSourceEntry(sampleLocation.getFileId(), studyId);
+            if (sourceEntry != null) {
+                return sourceEntry.getSampleData(sampleLocation.getIndex());
+            }
         }
+        throw new IllegalStateException("the sample " + sample + " was not found in the study " + studyId
+                + " in variant at " + variant.toString());
     }
 }

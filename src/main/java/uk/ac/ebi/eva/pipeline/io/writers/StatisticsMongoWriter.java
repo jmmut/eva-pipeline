@@ -16,18 +16,30 @@
 
 package uk.ac.ebi.eva.pipeline.io.writers;
 
+import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.data.MongoItemWriter;
 import org.springframework.data.mongodb.core.MongoOperations;
 import uk.ac.ebi.eva.pipeline.model.PopulationStatistics;
 
+import java.util.List;
+
 /**
  * Write a list of {@link PopulationStatistics} into MongoDB
  */
-public class StatisticsMongoWriter extends MongoItemWriter<PopulationStatistics> {
+public class StatisticsMongoWriter implements ItemWriter<List<PopulationStatistics>> {
+
+    private MongoItemWriter<PopulationStatistics> innerWriter;
 
     public StatisticsMongoWriter(MongoOperations mongoOperations, String collection) {
-        super();
-        setCollection(collection);
-        setTemplate(mongoOperations);
+        innerWriter = new MongoItemWriter<>();
+        innerWriter.setCollection(collection);
+        innerWriter.setTemplate(mongoOperations);
+    }
+
+    @Override
+    public void write(List<? extends List<PopulationStatistics>> items) throws Exception {
+        for (List<PopulationStatistics> list : items) {
+            innerWriter.write(list);
+        }
     }
 }

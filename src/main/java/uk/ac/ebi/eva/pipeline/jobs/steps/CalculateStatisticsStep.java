@@ -32,10 +32,15 @@ import org.springframework.context.annotation.Import;
 
 import uk.ac.ebi.eva.commons.models.data.Variant;
 import uk.ac.ebi.eva.pipeline.configuration.ChunkSizeCompletionPolicyConfiguration;
+import uk.ac.ebi.eva.pipeline.configuration.readers.VcfReaderConfiguration;
+import uk.ac.ebi.eva.pipeline.configuration.writers.StatisticsMongoWriterConfiguration;
 import uk.ac.ebi.eva.pipeline.configuration.writers.VariantWriterConfiguration;
 import uk.ac.ebi.eva.pipeline.jobs.steps.processors.StatisticsProcessor;
 import uk.ac.ebi.eva.pipeline.jobs.steps.tasklets.PopulationStatisticsGeneratorStep;
+import uk.ac.ebi.eva.pipeline.model.PopulationStatistics;
 import uk.ac.ebi.eva.pipeline.parameters.JobOptions;
+
+import java.util.List;
 
 import static uk.ac.ebi.eva.pipeline.configuration.BeanNames.CALCULATE_STATISTICS_STEP;
 import static uk.ac.ebi.eva.pipeline.configuration.BeanNames.VARIANT_DB_READER;
@@ -47,7 +52,7 @@ import static uk.ac.ebi.eva.pipeline.configuration.BeanNames.VARIANT_WRITER;
  */
 @Configuration
 @EnableBatchProcessing
-@Import({VariantDBReader.class, StatisticsProcessor.class, VariantWriterConfiguration.class,
+@Import({VariantDBReader.class, StatisticsProcessor.class, StatisticsMongoWriterConfiguration.class,
         ChunkSizeCompletionPolicyConfiguration.class})
 public class CalculateStatisticsStep {
 
@@ -59,11 +64,11 @@ public class CalculateStatisticsStep {
 
     @Autowired
     @Qualifier(VARIANT_STATISTICS_PROCESSOR)
-    private ItemProcessor<Variant, Variant> processor;
+    private ItemProcessor<Variant, List<PopulationStatistics>> processor;
 
     @Autowired
     @Qualifier(VARIANT_WRITER)
-    private ItemWriter<Variant> writer;
+    private ItemWriter<List<PopulationStatistics>> writer;
 
     @Bean(CALCULATE_STATISTICS_STEP)
     public Step generateCalculateStatisticsStep(StepBuilderFactory stepBuilderFactory, JobOptions jobOptions,
@@ -71,7 +76,7 @@ public class CalculateStatisticsStep {
         logger.debug("Building '" + CALCULATE_STATISTICS_STEP + "'");
 
         return stepBuilderFactory.get(CALCULATE_STATISTICS_STEP)
-                .<Variant, Variant>chunk(chunkSizeCompletionPolicy)
+                .<Variant, List<PopulationStatistics>>chunk(chunkSizeCompletionPolicy)
                 .reader(reader)
                 .processor(processor)
                 .writer(writer)

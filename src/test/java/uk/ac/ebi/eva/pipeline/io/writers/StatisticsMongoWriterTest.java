@@ -39,6 +39,7 @@ import uk.ac.ebi.eva.test.rules.TemporaryMongoRule;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -78,7 +79,7 @@ public class StatisticsMongoWriterTest {
 
         int expectedDocumentsCount = 1;
         for (int i = 0; i < expectedDocumentsCount; i++) {
-            statisticsMongoWriter.write(populationStatisticsList);
+            statisticsMongoWriter.write(Collections.singletonList(populationStatisticsList));
         }
 
         // do the checks
@@ -109,7 +110,7 @@ public class StatisticsMongoWriterTest {
 
         String databaseName = mongoRule.getRandomTemporaryDatabaseName();
         StatisticsMongoWriter statisticsMongoWriter = getStatisticsMongoWriter(databaseName);
-        statisticsMongoWriter.write(populationStatisticsList);
+        statisticsMongoWriter.write(Collections.singletonList(populationStatisticsList));
 
         // do the checks
         DBCollection statsCollection = mongoRule.getCollection(databaseName, COLLECTION_STATS_NAME);
@@ -142,14 +143,14 @@ public class StatisticsMongoWriterTest {
 
         String databaseName = mongoRule.getRandomTemporaryDatabaseName();
         StatisticsMongoWriter statisticsMongoWriter = getStatisticsMongoWriter(databaseName);
-        statisticsMongoWriter.write(populationStatisticsList);
-        statisticsMongoWriter.write(populationStatisticsList);   // should throw
+        statisticsMongoWriter.write(Collections.singletonList(populationStatisticsList));
+        statisticsMongoWriter.write(Collections.singletonList(populationStatisticsList));   // should throw
     }
 
     private List<PopulationStatistics> buildPopulationStatsList() throws Exception {
-        String statsPath = VariantData.getPopulationStatistics();
+        String statsString = VariantData.getPopulationStatistics();
         JsonLineMapper mapper = new JsonLineMapper();
-        Map<String, Object> map = mapper.mapLine(statsPath, 0);
+        Map<String, Object> map = mapper.mapLine(statsString, 0);
         PopulationStatistics populationStatistics = new PopulationStatistics(
                 (String) map.get("vid"),
                 (String) map.get("chr"),
@@ -171,7 +172,6 @@ public class StatisticsMongoWriterTest {
     public StatisticsMongoWriter getStatisticsMongoWriter(String databaseName) throws UnknownHostException {
         MongoOperations operations = MongoConfiguration.getMongoOperations(databaseName, mongoConnection,
                 mongoMappingContext);
-        StatisticsMongoWriter statisticsMongoWriter = new StatisticsMongoWriter(operations, COLLECTION_STATS_NAME);
-        return statisticsMongoWriter;
+        return new StatisticsMongoWriter(operations, COLLECTION_STATS_NAME);
     }
 }
